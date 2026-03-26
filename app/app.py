@@ -20,22 +20,22 @@ def save_file(path, data):
         json.dump(data, file)
 
 def load_users():
-    return get_file("./data.json")
+    return get_file("./data/users.json")
 
 def save_users(events):
-    save_file("./data.json", events)
+    save_file("./data/users.json", events)
 
 def load_passwords():
-    return get_file("./pwd.json")
+    return get_file("./data/pwd.json")
 
 def save_passwords(pwds):
-    save_file("./pwd.json", pwds)
+    save_file("./data/pwd.json", pwds)
 
 def load_tokens():
-    return get_file("./tokens.json")
+    return get_file("./data/tokens.json")
 
 def save_tokens(tokens):
-    save_file("./tokens.json", tokens)
+    save_file("./data/tokens.json", tokens)
     
 hasher = PasswordHasher() #instance qui hash avec salt
 
