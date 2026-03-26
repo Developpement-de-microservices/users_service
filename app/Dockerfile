@@ -7,10 +7,10 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y curl && apt-get c
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py .
+COPY app/app.py .
 
 EXPOSE 5000
 
