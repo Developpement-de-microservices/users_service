@@ -98,8 +98,8 @@ def list_users():
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        request = requests.post("http://proxy:8080/auth/verify", headers=headers)
-        if request.status_code != 200:
+        response = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        if response.status_code != 200:
             return jsonify({"error": "Not authorized"}), 401
     except requests.RequestException:
         return jsonify({"error": "Unable to check token, check /auth API"}), 401
@@ -114,8 +114,8 @@ def create_user():
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        request = requests.post("http://proxy:8080/auth/verify", headers=headers)
-        if request.status_code != 200:
+        response = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        if response.status_code != 200:
             return jsonify({"error": "Not authorized"}), 401
     except requests.RequestException:
         return jsonify({"error": "Unable to check token, check /auth API"}), 401
@@ -155,8 +155,8 @@ def get_user(user_id):
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        request = requests.post("http://proxy:8080/auth/verify", headers=headers)
-        if request.status_code != 200:
+        response = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        if response.status_code != 200:
             return jsonify({"error": "Not authorized"}), 401
     except requests.RequestException:
         return jsonify({"error": "Unable to check token, check /auth API"}), 401
@@ -175,8 +175,8 @@ def update_user(user_id):
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        request = requests.post("http://proxy:8080/auth/verify", headers=headers)
-        if request.status_code != 200:
+        response = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        if response.status_code != 200:
             return jsonify({"error": "Not authorized"}), 401
     except requests.RequestException:
         return jsonify({"error": "Unable to check token, check /auth API"}), 401
@@ -207,8 +207,8 @@ def delete_user(user_id):
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        request = requests.post("http://proxy:8080/auth/verify", headers=headers)
-        if request.status_code != 200:
+        response = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        if response.status_code != 200:
             return jsonify({"error": "Not authorized"}), 401
     except requests.RequestException:
         return jsonify({"error": "Unable to check token, check /auth API"}), 401
@@ -222,6 +222,33 @@ def delete_user(user_id):
     save_users(users)
 
     return jsonify({"success": True, "message": "User deleted", "id": user_id}), 200
+    
+
+users = load_users() # temp, autocreate admin
+passwords = load_passwords()
+tokens = load_tokens()
+    
+default_username = "admin"
+default_password = "admin123"
+
+if not any(u["username"] == default_username for u in users.values()):
+    user_id = str(uuid.uuid4())
+    new_user = {
+        "id": user_id,
+        "username": default_username,
+        "email": "admin@example.com",
+        "role": "ADMIN",
+        "active": True,
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "updatedAt": datetime.now(timezone.utc).isoformat()
+    }
+    users[user_id] = new_user
+    passwords[user_id] = hasher.hash(default_password)
+    tokens[user_id] = "token"+user_id
+        
+    save_users(users)
+    save_passwords(passwords)
+    save_tokens(tokens)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
