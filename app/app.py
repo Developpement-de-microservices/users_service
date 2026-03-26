@@ -125,6 +125,10 @@ def create_user():
     for elem in required:
         if not elem in data or not data[elem]: #inexistant ou null
              return jsonify({"error": "Please fill all required fields."}), 400
+
+    role = data.get("role")  
+    if role and not role in ["ADMIN","USER"]:
+        return jsonify({"error": "Please provide a valid role."}), 400
     
     users = load_users()
 
