@@ -2,11 +2,13 @@ from flask import Flask, request, jsonify
 from datetime import datetime, timezone
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+from flask_cors import CORS #pour try sur swagger
 import requests
 import uuid
 import json
 
 app = Flask(__name__)
+CORS(app)
 
 def get_file(path):
     try:
