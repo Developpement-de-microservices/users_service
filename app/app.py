@@ -41,6 +41,8 @@ def save_tokens(tokens):
     
 hasher = PasswordHasher() #instance qui hash avec salt
 
+roles = ["ADMIN","USER"]
+
 @app.route("/auth/verify", methods=["POST"])
 def verify_token():
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
@@ -127,7 +129,7 @@ def create_user():
              return jsonify({"error": "Please fill all required fields."}), 400
 
     role = data.get("role")  
-    if role and not role in ["ADMIN","USER"]:
+    if role and not role in roles:
         return jsonify({"error": "Please provide a valid role."}), 400
     
     users = load_users()
@@ -190,6 +192,10 @@ def update_user(user_id):
 
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
+    
+    role = data.get("role")  
+    if role and not role in roles:
+        return jsonify({"error": "Please provide a valid role."}), 400
     
     elems = ["username", "email", "role", "active"]
     for elem in elems:
