@@ -98,7 +98,7 @@ def list_users():
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        response = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        response = requests.post("http://proxy/auth/verify", headers=headers)
         if response.status_code != 200:
             return jsonify({"error": "Not authorized"}), 401
     except requests.RequestException:
@@ -114,7 +114,7 @@ def create_user():
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        response = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        response = requests.post("http://proxy/auth/verify", headers=headers)
         if response.status_code != 200:
             return jsonify({"error": "Not authorized"}), 401
     except requests.RequestException:
@@ -155,7 +155,7 @@ def get_user(user_id):
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        response = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        response = requests.post("http://proxy/auth/verify", headers=headers)
         if response.status_code != 200:
             return jsonify({"error": "Not authorized"}), 401
     except requests.RequestException:
@@ -175,7 +175,7 @@ def update_user(user_id):
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        response = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        response = requests.post("http://proxy/auth/verify", headers=headers)
         if response.status_code != 200:
             return jsonify({"error": "Not authorized"}), 401
     except requests.RequestException:
@@ -207,7 +207,7 @@ def delete_user(user_id):
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     try:
         headers = {"Authorization": f"Bearer {token}"}
-        response = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        response = requests.post("http://proxy/auth/verify", headers=headers)
         if response.status_code != 200:
             return jsonify({"error": "Not authorized"}), 401
     except requests.RequestException:
