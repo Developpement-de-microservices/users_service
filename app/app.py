@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from datetime import datetime, timezone
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
+import requests
 import uuid
 import json
 
@@ -38,6 +39,16 @@ def save_tokens(tokens):
     
 hasher = PasswordHasher() #instance qui hash avec salt
 
+@app.route("/auth/verify", methods=["POST"])
+def verify_token():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+
+    tokens = load_tokens()
+    if token not in tokens.values():
+        return jsonify({"error": "Invalid token"}), 401
+
+    return jsonify({"valid": True}), 200
+    
 @app.route("/auth/login", methods=["POST"])
 def login():
     data = request.json
@@ -81,12 +92,31 @@ def login():
 
 @app.route("/users", methods=["GET"])
 def list_users():
+
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        request = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        if request.status_code != 200:
+            return jsonify({"error": "Not authorized"}), 401
+    except requests.RequestException:
+        return jsonify({"error": "Unable to check token, check /auth API"}), 401
+    
     users = load_users()
     return jsonify(list(users.values())), 200
 
 @app.route("/users", methods=["POST"])
 def create_user():
     data = request.json
+
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        request = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        if request.status_code != 200:
+            return jsonify({"error": "Not authorized"}), 401
+    except requests.RequestException:
+        return jsonify({"error": "Unable to check token, check /auth API"}), 401
 
     required = ["username", "email", "password"]
 
@@ -120,6 +150,15 @@ def create_user():
 
 @app.route("/users/<user_id>", methods=["GET"])
 def get_user(user_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        request = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        if request.status_code != 200:
+            return jsonify({"error": "Not authorized"}), 401
+    except requests.RequestException:
+        return jsonify({"error": "Unable to check token, check /auth API"}), 401
+
     users = load_users()
     user = users.get(user_id) #ne provoque pas de key error si inexistant, semblable a userid in users
     if not user:
@@ -130,6 +169,15 @@ def get_user(user_id):
 @app.route("/users/<user_id>", methods=["PATCH"])
 def update_user(user_id):
     data = request.json
+
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        request = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        if request.status_code != 200:
+            return jsonify({"error": "Not authorized"}), 401
+    except requests.RequestException:
+        return jsonify({"error": "Unable to check token, check /auth API"}), 401
 
     users = load_users()
     user = users.get(user_id)
@@ -154,6 +202,15 @@ def update_user(user_id):
 
 @app.route("/users/<user_id>", methods=["DELETE"])
 def delete_user(user_id):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        request = requests.post("http://proxy:8080/auth/verify", headers=headers)
+        if request.status_code != 200:
+            return jsonify({"error": "Not authorized"}), 401
+    except requests.RequestException:
+        return jsonify({"error": "Unable to check token, check /auth API"}), 401
+
     users = load_users()
     
     if not user_id in users:
