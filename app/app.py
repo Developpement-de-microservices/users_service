@@ -235,7 +235,7 @@ def delete_user(user_id):
     return jsonify({"success": True, "message": "User deleted", "id": user_id}), 200
 
 @app.route("/users/health", methods=["GET"])
-def get_health_events():
+def get_health_users():
     response = {
         "status": "ok",
         "service": "Users",
