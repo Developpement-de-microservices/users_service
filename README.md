@@ -32,7 +32,3 @@ Parfait, je vais te refaire un README pour ton service **Users** en listant **to
 
 * Tous les endpoints nécessitant une authentification utilisent le **token statique** pour l’instant.
 * Le service est conçu pour être intégré à la plateforme complète en utilisant le docker-compose sur le dépot principal.
-
-
-
-Veux‑tu que je fasse ça ?
