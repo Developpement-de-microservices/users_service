@@ -3,13 +3,16 @@ from datetime import datetime, timezone
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from flask_cors import CORS #pour try sur swagger
-
+import jwt
 import requests
 import uuid
 import json
 
 app = Flask(__name__)
 CORS(app)
+
+SECRET_KEY = "bonjour"
+TOKEN_EXPIRATION = 3600 #1h
 
 def get_file(path):
     try:
@@ -33,12 +36,6 @@ def load_passwords():
 
 def save_passwords(pwds):
     save_file("./data/pwd.json", pwds)
-
-def load_tokens():
-    return get_file("./data/tokens.json")
-
-def save_tokens(tokens):
-    save_file("./data/tokens.json", tokens)
     
 hasher = PasswordHasher() #instance qui hash avec salt
 
@@ -47,12 +44,15 @@ roles = ["ADMIN","USER"]
 @app.route("/auth/verify", methods=["POST"])
 def verify_token():
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    try:
+        decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return jsonify({"valid": True,"user_id": decoded["user_id"]}), 200
 
-    tokens = load_tokens()
-    if token not in tokens.values():
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Token expired"}), 401
+    except jwt.InvalidTokenError:
         return jsonify({"error": "Invalid token"}), 401
 
-    return jsonify({"valid": True}), 200
     
 @app.route("/auth/login", methods=["POST"])
 def login():
@@ -88,12 +88,12 @@ def login():
     if not user_data["active"]:
         return jsonify({"error": "User disabled"}), 403
     
-    tokens = load_tokens()
-    if not user_id in tokens:
-        tokens[user_id] = "token"+user_id
-        save_tokens(tokens)
+    token = jwt.encode({
+        "user_id": user_id,
+        "exp": datetime.now(timezone.utc).timestamp() + TOKEN_EXPIRATION
+    }, SECRET_KEY, algorithm="HS256")
 
-    return jsonify({"accessToken": tokens[user_id],"user": user_data}), 200
+    return jsonify({"accessToken": token,"user": user_data}), 200
 
 @app.route("/users", methods=["GET"])
 def list_users():
@@ -243,32 +243,6 @@ def get_health_users():
     }
     return jsonify(response), 200
     
-
-users = load_users() # temp, autocreate admin
-passwords = load_passwords()
-tokens = load_tokens()
-    
-default_username = "admin"
-default_password = "admin123"
-
-if not any(u["username"] == default_username for u in users.values()):
-    user_id = str(uuid.uuid4())
-    new_user = {
-        "id": user_id,
-        "username": default_username,
-        "email": "admin@example.com",
-        "role": "ADMIN",
-        "active": True,
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "updatedAt": datetime.now(timezone.utc).isoformat()
-    }
-    users[user_id] = new_user
-    passwords[user_id] = hasher.hash(default_password)
-    tokens[user_id] = "token"+user_id
-        
-    save_users(users)
-    save_passwords(passwords)
-    save_tokens(tokens)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

@@ -1,14 +1,17 @@
 FROM python:3.11.15-trixie
 
+LABEL maintainer="Esteban Heschung <esteban.heschung@etudiant.univ-rennes.fr>"
 LABEL description="Microservice Flask pour gérer les utilisateurs" 
 LABEL service="users_service"
 
-RUN apt-get update && apt-get upgrade -y && apt-get install -y curl && apt-get clean #curl pour healthcheck
+RUN apt-get update && apt-get upgrade -y && apt-get install -y curl && apt-get clean # curl pour healthcheck
 
 WORKDIR /app
 
 COPY app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app/users.json data/
 
 COPY app/app.py .
 
