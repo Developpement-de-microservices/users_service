@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from flask_cors import CORS #pour try sur swagger
+
 import requests
 import uuid
 import json
@@ -232,6 +233,15 @@ def delete_user(user_id):
     save_users(users)
 
     return jsonify({"success": True, "message": "User deleted", "id": user_id}), 200
+
+@app.route("/users/health", methods=["GET"])
+def get_health_events():
+    response = {
+        "status": "ok",
+        "service": "Users",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    return jsonify(response), 200
     
 
 users = load_users() # temp, autocreate admin
