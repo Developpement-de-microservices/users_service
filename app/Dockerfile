@@ -12,6 +12,7 @@ COPY app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/users.json data/
+COPY app/pwd.json data/
 
 COPY app/app.py .
 
