@@ -10,8 +10,6 @@ Il gère la création, la lecture et la vérification des utilisateurs.
 
 > Pour l’instant, l’authentification utilise un **token statique**. Les futures versions intégreront un système complet de login et génération dynamique de tokens.
 
-Parfait, je vais te refaire un README pour ton service **Users** en listant **tous les endpoints disponibles**, avec les détails sur l’auth (token statique pour l’instant) et un exemple simple. Voici une version complète :
-
 ---
 
 ## Endpoints
