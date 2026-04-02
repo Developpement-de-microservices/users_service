@@ -7,8 +7,7 @@
 
 Le service **Users** fait partie de la plateforme de gestion des déploiements d’applications.
 Il gère la création, la lecture et la vérification des utilisateurs.
-
-> Pour l’instant, l’authentification utilise un **token statique**. Les futures versions intégreront un système complet de login et génération dynamique de tokens.
+L'authentification se fait via JWT dynamique.
 
 ---
 
@@ -28,6 +27,6 @@ Il gère la création, la lecture et la vérification des utilisateurs.
 
 ## Notes
 
-* Tous les endpoints nécessitant une authentification utilisent le **token statique** pour l’instant.
 * Le service est conçu pour être intégré à la plateforme complète en utilisant le docker-compose sur le dépot principal.
-* Mot de passe utilisateur stocké via la bibliothèque Argon2, recommandé par l’OWASP (Open Web Application Security Project) pour les mots de passe car contient un salt. Cela permet d’éviter de deviner le hash via des comparaisons de hash. 
+* Mot de passe utilisateur stocké via la bibliothèque Argon2, recommandé par l’OWASP (Open Web Application Security Project) pour les mots de passe car contient un salt. Cela permet d’éviter de deviner le hash via des comparaisons de hash.
+* Stockage en MongoDB.

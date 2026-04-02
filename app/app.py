@@ -2,58 +2,52 @@ from flask import Flask, request, jsonify
 from datetime import datetime, timezone
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from flask_cors import CORS #pour try sur swagger
-
+from flask_cors import CORS
+from pymongo import MongoClient
+from bson import ObjectId
 import requests
-import uuid
-import json
+import jwt
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-def get_file(path):
-    try:
-        with open(path, "r") as file:
-            return json.load(file)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
-    
-def save_file(path, data):
-    with open(path, "w") as file:
-        json.dump(data, file)
+SECRET_KEY = "bonjour"
+TOKEN_EXPIRATION = 3600
 
-def load_users():
-    return get_file("./data/users.json")
+client = MongoClient(os.environ["MONGO_URI"])
+db = client["authdb"]
+users_collection = db["users"]
+passwords_collection = db["passwords"]
 
-def save_users(events):
-    save_file("./data/users.json", events)
-
-def load_passwords():
-    return get_file("./data/pwd.json")
-
-def save_passwords(pwds):
-    save_file("./data/pwd.json", pwds)
-
-def load_tokens():
-    return get_file("./data/tokens.json")
-
-def save_tokens(tokens):
-    save_file("./data/tokens.json", tokens)
-    
-hasher = PasswordHasher() #instance qui hash avec salt
+hasher = PasswordHasher()
 
 roles = ["ADMIN","USER"]
+
+def format_user(user):
+    return {
+        "id": str(user["_id"]),
+        "username": user["username"],
+        "email": user["email"],
+        "role": user["role"],
+        "active": user["active"],
+        "createdAt": user["createdAt"],
+        "updatedAt": user["updatedAt"]
+    }
 
 @app.route("/auth/verify", methods=["POST"])
 def verify_token():
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    try:
+        decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return jsonify({"valid": True,"user_id": decoded["user_id"]}), 200
 
-    tokens = load_tokens()
-    if token not in tokens.values():
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Token expired"}), 401
+    except jwt.InvalidTokenError:
         return jsonify({"error": "Invalid token"}), 401
 
-    return jsonify({"valid": True}), 200
-    
+
 @app.route("/auth/login", methods=["POST"])
 def login():
     data = request.json
@@ -63,41 +57,33 @@ def login():
         if elem not in data:
             return jsonify({"error": "Missing fields"}), 400
 
-    users = load_users()
-    passwords = load_passwords()
+    user = users_collection.find_one({"username": data["username"]})
 
-    user_data = None
-    user_id = None
-
-    for uid, value in users.items():
-        if value["username"] == data["username"]:
-            user_data = value
-            user_id = uid
-            break
-
-    if not user_data:
+    if not user:
         return jsonify({"error": "Invalid credentials"}), 401
 
-    hashed_password = passwords[user_id]
+    pwd = passwords_collection.find_one({"user_id": user["_id"]})
+    if not pwd:
+        return jsonify({"error": "Invalid credentials"}), 401
 
     try:
-        hasher.verify(hashed_password, data["password"])
+        hasher.verify(pwd["password"], data["password"])
     except VerifyMismatchError:
         return jsonify({"error": "Invalid credentials"}), 401
 
-    if not user_data["active"]:
+    if not user["active"]:
         return jsonify({"error": "User disabled"}), 403
     
-    tokens = load_tokens()
-    if not user_id in tokens:
-        tokens[user_id] = "token"+user_id
-        save_tokens(tokens)
+    token = jwt.encode({
+        "user_id": str(user["_id"]),
+        "exp": datetime.now(timezone.utc).timestamp() + TOKEN_EXPIRATION
+    }, SECRET_KEY, algorithm="HS256")
 
-    return jsonify({"accessToken": tokens[user_id],"user": user_data}), 200
+    return jsonify({"accessToken": token,"user": format_user(user)}), 200
+
 
 @app.route("/users", methods=["GET"])
 def list_users():
-
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     try:
         headers = {"Authorization": f"Bearer {token}"}
@@ -107,8 +93,12 @@ def list_users():
     except requests.RequestException:
         return jsonify({"error": "Unable to check token, check /auth API"}), 401
     
-    users = load_users()
-    return jsonify(list(users.values())), 200
+    users = []
+    for user in users_collection.find():
+        users.append(format_user(user))
+        
+    return jsonify(users), 200
+
 
 @app.route("/users", methods=["POST"])
 def create_user():
@@ -126,36 +116,36 @@ def create_user():
     required = ["username", "email", "password"]
 
     for elem in required:
-        if not elem in data or not data[elem]: #inexistant ou null
+        if not elem in data or not data[elem]:
              return jsonify({"error": "Please fill all required fields."}), 400
 
     role = data.get("role")  
     if role and not role in roles:
         return jsonify({"error": "Please provide a valid role."}), 400
     
-    users = load_users()
+    if users_collection.find_one({"username": data["username"]}):
+        return jsonify({"error": "Username already exists"}), 400
 
-    for user in users.values():
-        if user["username"] == data["username"]:
-            return jsonify({"error": "Username already exists"}), 400
+    now = datetime.now(timezone.utc).isoformat()
 
-    passwords = load_passwords()
-    user_id = str(uuid.uuid4())
     new_user = {
-        "id": user_id,
         "username": data["username"],
         "email": data["email"],
         "role": data.get("role", "USER"),
         "active": data.get("active", True),
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "updatedAt": datetime.now(timezone.utc).isoformat()
+        "createdAt": now,
+        "updatedAt": now
     }
 
-    passwords[user_id] = hasher.hash(data["password"])
-    users[user_id] = new_user
-    save_passwords(passwords)
-    save_users(users)
-    return jsonify(new_user), 201
+    result = users_collection.insert_one(new_user)
+
+    passwords_collection.insert_one({
+        "user_id": result.inserted_id,
+        "password": hasher.hash(data["password"])
+    })
+
+    user = users_collection.find_one({"_id": result.inserted_id})
+    return jsonify(format_user(user)), 201
 
 @app.route("/users/<user_id>", methods=["GET"])
 def get_user(user_id):
@@ -168,12 +158,15 @@ def get_user(user_id):
     except requests.RequestException:
         return jsonify({"error": "Unable to check token, check /auth API"}), 401
 
-    users = load_users()
-    user = users.get(user_id) #ne provoque pas de key error si inexistant, semblable a userid in users
+    try:
+        user = users_collection.find_one({"_id": ObjectId(user_id)})
+    except:
+        return jsonify({"error": "Invalid ID"}), 400
+
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
     
-    return jsonify(user), 200
+    return jsonify(format_user(user)), 200
 
 @app.route("/users/<user_id>", methods=["PATCH"])
 def update_user(user_id):
@@ -188,8 +181,12 @@ def update_user(user_id):
     except requests.RequestException:
         return jsonify({"error": "Unable to check token, check /auth API"}), 401
 
-    users = load_users()
-    user = users.get(user_id)
+    try:
+        real_id = ObjectId(user_id)
+    except:
+        return jsonify({"error": "Invalid ID"}), 400
+
+    user = users_collection.find_one({"_id": real_id})
 
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
@@ -198,20 +195,22 @@ def update_user(user_id):
     if role and not role in roles:
         return jsonify({"error": "Please provide a valid role."}), 400
     
-    elems = ["username", "email", "role", "active"]
-    for elem in elems:
+    update_fields = {}
+    for elem in ["username", "email", "role", "active"]:
         if elem in data:
-            user[elem] = data[elem]
-    user["updatedAt"] = datetime.now(timezone.utc).isoformat()
+            update_fields[elem] = data[elem]
 
-    passwords = load_passwords()
+    if update_fields:
+        update_fields["updatedAt"] = datetime.now(timezone.utc).isoformat()
+        users_collection.update_one({"_id": real_id}, {"$set": update_fields})
+
     if data.get("password"):
-        passwords[user_id] = hasher.hash(data["password"])
-        save_passwords(passwords)
-    
-    users[user_id] = user
-    save_users(users)
-    return jsonify(user), 200
+        passwords_collection.update_one(
+            {"user_id": real_id},
+            {"$set": {"password": hasher.hash(data["password"])}})
+
+    updated_user = users_collection.find_one({"_id": real_id})
+    return jsonify(format_user(updated_user)), 200
 
 @app.route("/users/<user_id>", methods=["DELETE"])
 def delete_user(user_id):
@@ -224,13 +223,17 @@ def delete_user(user_id):
     except requests.RequestException:
         return jsonify({"error": "Unable to check token, check /auth API"}), 401
 
-    users = load_users()
-    
-    if not user_id in users:
+    try:
+        real_id = ObjectId(user_id)
+    except:
+        return jsonify({"error": "Invalid ID"}), 400
+
+    result = users_collection.delete_one({"_id": real_id})
+
+    if result.deleted_count == 0:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
-    
-    users.pop(user_id, None) #delete
-    save_users(users)
+
+    passwords_collection.delete_one({"user_id": real_id})
 
     return jsonify({"success": True, "message": "User deleted", "id": user_id}), 200
 
@@ -242,33 +245,26 @@ def get_health_users():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
     return jsonify(response), 200
-    
 
-users = load_users() # temp, autocreate admin
-passwords = load_passwords()
-tokens = load_tokens()
-    
-default_username = "admin"
-default_password = "admin123"
 
-if not any(u["username"] == default_username for u in users.values()):
-    user_id = str(uuid.uuid4())
-    new_user = {
-        "id": user_id,
-        "username": default_username,
-        "email": "admin@example.com",
+admin_user = users_collection.find_one({"username": "admin"}) #add auto admin
+
+if not admin_user:
+    now = datetime.now(timezone.utc).isoformat()
+
+    result = users_collection.insert_one({
+        "username": "admin",
+        "email": "admin@admin.com",
         "role": "ADMIN",
         "active": True,
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-        "updatedAt": datetime.now(timezone.utc).isoformat()
-    }
-    users[user_id] = new_user
-    passwords[user_id] = hasher.hash(default_password)
-    tokens[user_id] = "token"+user_id
-        
-    save_users(users)
-    save_passwords(passwords)
-    save_tokens(tokens)
+        "createdAt": now,
+        "updatedAt": now
+    })
+
+    passwords_collection.insert_one({
+        "user_id": result.inserted_id,
+        "password": "$argon2id$v=19$m=65536,t=3,p=4$66WL6KgsiSQvqR25mlc1YQ$2bs9XTapZkr4pZQvzV/YZky8K+0uUl0RkxCZntHcdnc"
+    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

@@ -1,9 +1,10 @@
-FROM python:3.11.15-trixie
+FROM python:3.10.20-alpine3.22
 
+LABEL maintainer="Esteban Heschung <esteban.heschung@etudiant.univ-rennes.fr>"
 LABEL description="Microservice Flask pour gérer les utilisateurs" 
 LABEL service="users_service"
 
-RUN apt-get update && apt-get upgrade -y && apt-get install -y curl && apt-get clean #curl pour healthcheck
+RUN apk add --no-cache curl # curl pour healthcheck
 
 WORKDIR /app
 

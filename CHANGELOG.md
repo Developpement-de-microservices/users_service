@@ -21,3 +21,14 @@ Toutes les modifications notables de ce projet seront documentées dans ce fichi
 
 ### Fixed
 - N/A (première version)
+
+## [2.0] - 02/04/2026
+### Added
+- JWT dynamique
+
+### Changed
+- Ajout de MongoDB à la place de JSON
+- Image alpine python
+
+### Fixed
+- N/A
