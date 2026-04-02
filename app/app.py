@@ -245,7 +245,26 @@ def get_health_users():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
     return jsonify(response), 200
-    
+
+
+admin_user = users_collection.find_one({"username": "admin"}) #add auto admin
+
+if not admin_user:
+    now = datetime.now(timezone.utc).isoformat()
+
+    result = users_collection.insert_one({
+        "username": "admin",
+        "email": "admin@admin.com",
+        "role": "ADMIN",
+        "active": True,
+        "createdAt": now,
+        "updatedAt": now
+    })
+
+    passwords_collection.insert_one({
+        "user_id": result.inserted_id,
+        "password": "$argon2id$v=19$m=65536,t=3,p=4$66WL6KgsiSQvqR25mlc1YQ$2bs9XTapZkr4pZQvzV/YZky8K+0uUl0RkxCZntHcdnc"
+    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
